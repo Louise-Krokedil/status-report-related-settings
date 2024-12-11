@@ -44,13 +44,21 @@ class SRRS_Status_Table {
 		 }
 
         // Get the settings values
+        $countries = WC()->countries->countries;
+        $specific_countries = get_option( 'woocommerce_specific_allowed_countries', array() );
+        $specific_shipping_countries = get_option( 'woocommerce_specific_ship_to_countries', array() );
+
         $settings = array(
             'WC General Settings' => ' ',
             'Base Country' => get_option( 'woocommerce_default_country', 'N/A' ),
             'Selling Location(s)' => get_option( 'woocommerce_allowed_countries', 'N/A' ),
-            'Specific Countries' => implode( ', ', get_option( 'woocommerce_specific_allowed_countries', array() ) ),
+            'Specific Countries' => implode( ', ', array_map( function( $code ) use ( $countries ) {
+                return $countries[ $code ] ?? $code;
+            }, $specific_countries ) ),
             'Shipping Location(s)' => get_option( 'woocommerce_ship_to_countries', 'N/A' ),
-            'Specific Shipping Countries' => implode( ', ', get_option( 'woocommerce_specific_ship_to_countries', array() ) ),
+            'Specific Shipping Countries' => implode( ', ', array_map( function( $code ) use ( $countries ) {
+                return $countries[ $code ] ?? $code;
+            }, $specific_shipping_countries ) ),
             'Default Customer Location' => get_option( 'woocommerce_default_customer_address', 'N/A' ),
             'Enable Taxes' => get_option( 'woocommerce_calc_taxes', 'no' ) === 'yes' ? 'Yes' : 'No',
             'WC Product Settings' => ' ',
@@ -77,21 +85,25 @@ class SRRS_Status_Table {
 
         // Map the settings values to readable formats
         $settings['Selling Location(s)'] = $settings['Selling Location(s)'] === 'all' ? 'Sell to all countries' : ( $settings['Selling Location(s)'] === 'specific' ? 'Sell to specific countries only' : 'Sell to no countries' );
-        $settings['Shipping Location(s)'] = $settings['Shipping Location(s)'] === 'all' ? 'Ship to all countries' : ( $settings['Shipping Location(s)'] === 'all_except' ? 'Ship to all countries you sell to' : ( $settings['Shipping Location(s)'] === 'specific' ? 'Ship to specific countries only' : 'Ship to no countries' ) );
+        $settings['Shipping Location(s)'] = $settings['Shipping Location(s)'] === 'all' ? 'Ship to all countries' : ( $settings['Shipping Location(s)'] === 'all_except' ? 'Ship to all countries you sell to' : ( $settings['Shipping Location(s)'] === 'specific' ? 'Ship to specific countries only' : ( $settings['Shipping Location(s)'] === 'disabled' ? 'Disable shipping and shipping calculations' : 'Ship to no countries' ) ) );
         $settings['Default Customer Location'] = $settings['Default Customer Location'] === 'base' ? 'Shop base address' : ( $settings['Default Customer Location'] === 'geolocation' ? 'Geolocate' : ( $settings['Default Customer Location'] === 'geolocation_ajax' ? 'Geolocate (with page caching support)' : 'No location by default' ) );
 
-        // NEEDS TO BE FIXED
         // Adjust the shipping location based on selling location
         if ($settings['Selling Location(s)'] === 'Sell to all countries') {
             $settings['Specific Countries'] = '';
             $settings['Specific Shipping Countries'] = '';
         } elseif ($settings['Selling Location(s)'] === 'Sell to specific countries only') {
-            $settings['Shipping Location(s)'] = 'Ship to all countries you sell to';
-            $settings['Specific Shipping Countries'] = $settings['Specific Countries'];
+            $settings['Shipping Location(s)'] = 'Ship to specific countries only';
+            $settings['Specific Shipping Countries'] = implode( ', ', array_map( function( $code ) use ( $countries ) {
+                return $countries[ $code ] ?? $code;
+            }, $specific_shipping_countries ) );
         } elseif ($settings['Selling Location(s)'] === 'Sell to all countries except for') {
-            $settings['Specific Shipping Countries'] = $settings['Specific Countries'];
+            $settings['Specific Shipping Countries'] = implode( ', ', array_map( function( $code ) use ( $countries ) {
+                return $countries[ $code ] ?? $code;
+            }, $specific_countries ) );
+        } elseif ($settings['Shipping Location(s)'] === 'Disable shipping and shipping calculations') {
+            $settings['Specific Shipping Countries'] = 'Disabled';
         }
-
 
         // Map the "Calculate Tax Based On" setting to a readable format
         $settings['Calculate Tax Based On'] = $settings['Calculate Tax Based On'] === 'shipping' ? 'Customer shipping address' : ( $settings['Calculate Tax Based On'] === 'billing' ? 'Customer billing address' : 'Shop base address' );
